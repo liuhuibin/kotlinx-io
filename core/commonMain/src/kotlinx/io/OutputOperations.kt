@@ -32,7 +32,7 @@ fun Output.writeULong(value: ULong): Unit = writeLong(value.toLong())
  * TODO: measure
  */
 @ExperimentalUnsignedTypes
-fun Output.writeArray(array: UByteArray) {
+fun Output.writeByteArray(array: UByteArray) {
     for (byte in array) {
         writeUByte(byte)
     }

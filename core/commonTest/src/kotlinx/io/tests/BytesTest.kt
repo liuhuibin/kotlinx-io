@@ -8,11 +8,11 @@ class BytesTest {
 
     @Test
     fun testSmokeSingleBuffer() = bufferSizes.forEach { size ->
-        val bytes = buildBytes(size) {
+        val input = buildInput(size) {
             val array = ByteArray(2)
             array[0] = 0x11
             array[1] = 0x22
-            writeArray(array)
+            writeByteArray(array)
 
             writeByte(0x12)
             writeUByte(0x82u)
@@ -26,11 +26,10 @@ class BytesTest {
             writeUTF8String("OK\n")
         }
 
-        assertEquals(2 + 2 + 2 + 4 + 8 + 4 + 8 + 8 + 3, bytes.size())
+        assertEquals(2 + 2 + 2 + 4 + 8 + 4 + 8 + 8 + 3, input.remaining)
 
-        val input = bytes.input()
         val ba = ByteArray(2)
-        input.readArray(ba)
+        input.readByteArray(ba)
 
         assertEquals(0x11, ba[0])
         assertEquals(0x22, ba[1])
@@ -51,8 +50,8 @@ class BytesTest {
 
     @Test
     fun testSmokeMultiBuffer() {
-        buildBytes {
-            writeArray(ByteArray(9999))
+        buildInput {
+            writeByteArray(ByteArray(9999))
             writeByte(0x12)
             writeShort(0x1234)
             writeInt(0x12345678)
@@ -63,62 +62,61 @@ class BytesTest {
             writeUTF8String("OK\n")
             val text = listOf(1, 2, 3).joinToString(separator = "|")
             writeUTF8String("$text\n")
-        }.useInput {
-            readArray(ByteArray(9999))
-            assertEquals(0x12, readByte())
-            assertEquals(0x1234, readShort())
-            assertEquals(0x12345678, readInt())
-            assertEquals(1.25, readDouble())
-            assertEquals(1.25f, readFloat())
-            assertEquals(0x123456789abcdef0, readLong())
+        }.use {
+            it.readByteArray(ByteArray(9999))
+            assertEquals(0x12, it.readByte())
+            assertEquals(0x1234, it.readShort())
+            assertEquals(0x12345678, it.readInt())
+            assertEquals(1.25, it.readDouble())
+            assertEquals(1.25f, it.readFloat())
+            assertEquals(0x123456789abcdef0, it.readLong())
 
-            assertEquals("OK", readUTF8Line())
-            assertEquals("1|2|3", readUTF8Line())
-            assertTrue { eof() }
+            assertEquals("OK", it.readUTF8Line())
+            assertEquals("1|2|3", it.readUTF8Line())
+            assertTrue { it.eof() }
         }
     }
 
     @Test
     fun testSingleBufferSkipTooMuch() {
-        buildBytes {
-            writeArray(ByteArray(9999))
-        }.use { buffer ->
-            val input = buffer.input()
-            input.readArray(ByteArray(9999))
+        buildInput {
+            writeByteArray(ByteArray(9999))
+        }.use { input ->
+            input.readByteArray(ByteArray(9999))
             assertTrue { input.eof() }
         }
     }
 
     @Test
     fun testSingleBufferSkip() {
-        buildBytes {
-            writeArray("ABC123\n".toByteArray0())
-        }.useInput {
-            readArray(ByteArray(3))
-            assertEquals("123", readUTF8Line())
-            assertTrue { eof() }
+        buildInput {
+            writeByteArray("ABC123\n".toByteArray0())
+        }.also {
+            it.readByteArray(ByteArray(3))
+            assertEquals("123", it.readUTF8Line())
+            assertTrue { it.eof() }
         }
     }
 
     @Test
     fun testSingleBufferSkipExact() {
-        val p = buildBytes {
-            writeArray("ABC123".toByteArray0())
-        }.useInput {
-            readArray(ByteArray(3))
-            assertEquals("123", readUTF8String(3))
-            assertTrue { eof() }
+        buildInput {
+            writeByteArray("ABC123".toByteArray0())
+        }.use {
+            it.readByteArray(ByteArray(3))
+            assertEquals("123", it.readUTF8String(3))
+            assertTrue { it.eof() }
         }
 
     }
 
     @Test
     fun testSingleBufferSkipExactTooMuch() {
-        buildBytes {
-            writeArray("ABC123".toByteArray0())
+        buildInput {
+            writeByteArray("ABC123".toByteArray0())
         }.useInput {
             assertFailsWith<EOFException> {
-                readArray(ByteArray(1000))
+                readByteArray(ByteArray(1000))
             }
             assertTrue { eof() }
         }
@@ -130,7 +128,7 @@ class BytesTest {
     @Ignore
     fun testMultiBufferSkipTooMuch() {
         buildBytes {
-            writeArray(ByteArray(99999))
+            writeByteArray(ByteArray(99999))
         }.useInput {
             assertTrue { eof() }
         }
@@ -140,10 +138,10 @@ class BytesTest {
     @Test
     fun testMultiBufferSkip() {
         buildBytes {
-            writeArray(ByteArray(99999))
-            writeArray("ABC123\n".toByteArray0())
+            writeByteArray(ByteArray(99999))
+            writeByteArray("ABC123\n".toByteArray0())
         }.useInput {
-            readArray(ByteArray(99999 + 3))
+            readByteArray(ByteArray(99999 + 3))
             assertEquals("123", readUTF8Line())
             assertTrue { eof() }
         }
@@ -156,7 +154,7 @@ class BytesTest {
                 writeByte(1)
             }
         }.useInput {
-            readArray(ByteArray(PACKET_BUFFER_SIZE - 1))
+            readByteArray(ByteArray(PACKET_BUFFER_SIZE - 1))
             assertEquals(0x01010101, readInt())
             assertTrue { eof() }
         }
@@ -169,7 +167,7 @@ class BytesTest {
                 writeByte(1)
             }
         }.useInput {
-            readArray(ByteArray(PACKET_BUFFER_SIZE - 1))
+            readByteArray(ByteArray(PACKET_BUFFER_SIZE - 1))
 
             try {
                 readInt()

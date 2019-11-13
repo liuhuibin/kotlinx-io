@@ -6,7 +6,7 @@ import kotlinx.io.pool.*
 /**
  * [Input] is an abstract base class for synchronous byte readers.
  *
- * It contains [read*] methods to read primitive types ([readByte], [readInt], ...) and arrays([readArray]).
+ * It contains [read*] methods to read primitive types ([readByte], [readInt], ...) and arrays([readByteArray]).
  *
  * [Input] is buffered. Buffer size depends on [Buffer.size] in the [bufferPool] buffer.
  * Buffer size is [DEFAULT_BUFFER_SIZE] by default.
@@ -64,36 +64,6 @@ public abstract class Input : Closeable {
     private var limit: Int = 0
 
     /**
-     * Constructs a new Input with the given `bufferPool`.
-     */
-    protected constructor(bufferPool: ObjectPool<Buffer>) {
-        this.bufferPool = bufferPool
-        this.buffer = bufferPool.borrow()
-        previewBytes = null
-    }
-
-    /**
-     * Constructs a new Input with the given [bytes], pool is taken from [bytes].
-     */
-    protected constructor(bytes: Bytes) {
-        this.bufferPool = bytes.bufferPool
-        previewBytes = bytes
-        this.buffer = bytes.pointed(Bytes.StartPointer) { limit ->
-            this.limit = limit
-        }
-    }
-
-    /**
-     * Constructs a new Input with the default pool of buffers with the given [bufferSize].
-     */
-    protected constructor(bufferSize: Int = DEFAULT_BUFFER_SIZE) : this(
-        if (bufferSize == DEFAULT_BUFFER_SIZE)
-            DefaultBufferPool.Instance
-        else
-            DefaultBufferPool(bufferSize)
-    )
-
-    /**
      * Index of a current buffer in the [previewBytes].
      */
     private var previewIndex: Int = Bytes.StartPointer
@@ -108,6 +78,37 @@ public abstract class Input : Closeable {
      * Recorded buffers for preview operation.
      */
     private var previewBytes: Bytes?
+
+    /**
+     * Constructs a new Input with the given `bufferPool`.
+     */
+    protected constructor(pool: ObjectPool<Buffer>) {
+        bufferPool = pool
+        buffer = pool.borrow()
+        previewBytes = null
+    }
+
+    /**
+     * Constructs a new Input with the given [bytes], pool is taken from [bytes].
+     */
+    internal constructor(bytes: Bytes, pool: ObjectPool<Buffer>) {
+        bufferPool = pool
+        previewBytes = bytes
+        buffer = bytes.pointed(Bytes.StartPointer) { offset ->
+            limit = offset
+        }
+    }
+
+    /**
+     * Constructs a new Input with the default pool of buffers with the given [bufferSize].
+     */
+    protected constructor(bufferSize: Int = DEFAULT_BUFFER_SIZE) : this(
+        if (bufferSize == DEFAULT_BUFFER_SIZE)
+            DefaultBufferPool.Instance
+        else
+            DefaultBufferPool(bufferSize)
+    )
+
 
     /**
      * Reads a [Byte] from this Input.
@@ -174,7 +175,7 @@ public abstract class Input : Closeable {
             return true // enough bytes in current buffer
 
         // we will fetch bytes into additional buffers, so prepare preview
-        val bytes = previewBytes ?: Bytes(bufferPool).also {
+        val bytes = previewBytes ?: Bytes().also {
             previewBytes = it
             it.append(buffer, limit)
         }
@@ -243,7 +244,10 @@ public abstract class Input : Closeable {
         if (DefaultBufferPool.Instance != bufferPool)
             bufferPool.close()
 
-        previewBytes?.close()
+        while (true) {
+            val buffer = previewBytes?.discardFirst() ?: break
+            bufferPool.recycle(buffer)
+        }
     }
 
     /**
@@ -385,7 +389,7 @@ public abstract class Input : Closeable {
             return fetched
         } else {
             // we are collecting bytes, so need to put current buffer to maintain invariant
-            Bytes(bufferPool).also {
+            Bytes().also {
                 previewBytes = it
                 it.append(buffer, limit)
             }
@@ -393,15 +397,15 @@ public abstract class Input : Closeable {
 
         if (discard) {
             bufferPool.recycle(buffer)
-            bytes.discardFirst()
+            bytes.discardFirst()?.also {
+                bufferPool.recycle(it)
+            }
             if (bytes.isEmpty()) {
-                bytes.close()
                 previewBytes = null
                 return fillBuffer(bufferPool.borrow())
             }
 
-            val oldLimit = limit
-            this.buffer = bytes.pointed(Bytes.StartPointer) { limit -> this.limit = limit }
+            buffer = bytes.pointed(Bytes.StartPointer) { limit -> this.limit = limit }
             position = 0
             return limit
         }
@@ -415,17 +419,17 @@ public abstract class Input : Closeable {
         }
 
         // we have a buffer already in history, i.e. replaying history inside another preview
-        this.buffer = bytes.pointed(nextIndex) { limit -> this.limit = limit }
-        this.position = 0
+        buffer = bytes.pointed(nextIndex) { limit -> this.limit = limit }
+        position = 0
         previewIndex = nextIndex
         return limit
     }
 
-    private fun fillBuffer(buffer: Buffer): Int {
-        val fetched = fill(buffer)
+    private fun fillBuffer(source: Buffer): Int {
+        val fetched = fill(source)
         limit = fetched
         position = 0
-        this.buffer = buffer
+        buffer = source
         return fetched
     }
 }

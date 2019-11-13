@@ -6,9 +6,10 @@
     - `Input.discard()`, discardExact
     - `readUtf8Line` throws if string ends wo `\n`
 - Implementation
-    -  Input
-    -  Output
-    -  Index preconditions
+    - Console: shared buffer
+    - Input
+    - Output
+    - Index preconditions
     - `bytesInput = buildInput { BytesOutput -> }`
         - `Bytes.createInput()` copy on consume
     - Introduce `BytesInput` and `BytesOutput` `(Input/Output + size, remaining)`
@@ -16,6 +17,7 @@
     - Introduce `Input.copyAvailableTo(Output | Buffer)`: consume single buffer(wait if no buffer available)
     - Prototype `PipedOutput`
     - Remove `Input/Output` companion until we have no use-cases in the library.
+    - Check `equals & hashcode`
 - Test
     - Verify pool has no leaks
 - Documentation

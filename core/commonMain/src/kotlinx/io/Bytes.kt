@@ -1,28 +1,25 @@
 package kotlinx.io
 
 import kotlinx.io.buffer.*
-import kotlinx.io.pool.*
 
 internal typealias BytesPointer = Int
 
-/**
- * Read-only bytes container.
- *
- * Use [input] to create readable [Input].
- * All inputs from a [Bytes] instance are share the same buffers.
- *
- * ```
- * buildBytes {
- * }
- * ```
- * 1. create
- * 2. close
- * 3. example
- */
-class Bytes internal constructor(internal val bufferPool: ObjectPool<Buffer>) : Closeable {
+internal class Bytes {
     private var buffers: Array<Buffer?> = arrayOfNulls(initialPreviewSize)
+
+    /**
+     * Limit of each [Buffer] in [buffers].
+     */
     private var limits: IntArray = IntArray(initialPreviewSize)
+
+    /**
+     * Index of the first [Buffer] in [buffers].
+     */
     private var head: Int = 0
+
+    /**
+     * Index of the last [Buffer] in [buffers].
+     */
     private var tail: Int = 0
 
     /**
@@ -31,28 +28,18 @@ class Bytes internal constructor(internal val bufferPool: ObjectPool<Buffer>) : 
     fun size(): Int = size(StartPointer)
 
     /**
-     * Create [Input] view on content.
+     * Check if [Bytes] is empty.
      */
-    fun input(): Input = object : Input(this@Bytes) {
-        override fun closeSource() {}
-        override fun fill(buffer: Buffer): Int = 0
-    }
+    fun isEmpty(): Boolean = tail == head
+
+    /**
+     * Create [BytesInput] from this.
+     */
+    fun createInput(): BytesInput = BytesInput(this)
 
     override fun toString() = "Bytes($head..$tail)"
 
-    /**
-     * Release all data. Every produced input is broken.
-     */
-    override fun close(): Unit {
-        (head until tail).forEach {
-            bufferPool.recycle(buffers[it]!!)
-            buffers[it] = null
-        }
-        head = 0
-        tail = 0
-    }
-
-    internal fun append(buffer: Buffer, limit: Int): Unit {
+    fun append(buffer: Buffer, limit: Int) {
         if (head > 0) {
             // if we are appending buffers after some were discarded, 
             // compact arrays so we can store more without allocations
@@ -72,15 +59,21 @@ class Bytes internal constructor(internal val bufferPool: ObjectPool<Buffer>) : 
         tail++
     }
 
-    internal fun discardFirst(): Unit {
-        if (head == tail)
-            throw NoSuchElementException("There is no buffer to discard in this instance")
+    fun discardFirst(): Buffer? {
+        if (head == tail) {
+            return null
+        }
+
+        val result = buffers[head]!!
+
         buffers[head] = null
         limits[head] = -1
         head++
+
+        return result
     }
 
-    internal inline fun pointed(pointer: BytesPointer, consumer: (Int) -> Unit): Buffer {
+    inline fun pointed(pointer: BytesPointer, consumer: (Int) -> Unit): Buffer {
         // Buffer is returned and not sent to `consumer` because we need to initialize field in Input's constructor
         val index = pointer + head
         val buffer = buffers[index] ?: throw NoSuchElementException("There is no buffer at pointer $pointer")
@@ -89,19 +82,19 @@ class Bytes internal constructor(internal val bufferPool: ObjectPool<Buffer>) : 
         return buffer
     }
 
-    internal fun limit(pointer: BytesPointer): Int = limits[pointer + head]
+    fun limit(pointer: BytesPointer): Int = limits[pointer + head]
 
-    internal fun advancePointer(pointer: BytesPointer): BytesPointer = pointer + 1
+    fun advancePointer(pointer: BytesPointer): BytesPointer = pointer + 1
 
-    internal fun isEmpty() = tail == head
+    fun isAfterLast(index: BytesPointer) = head + index >= tail
 
-    internal fun isAfterLast(index: BytesPointer) = head + index >= tail
-
-    internal fun size(pointer: BytesPointer): Int {
+    fun size(pointer: BytesPointer): Int {
         // ???: if Input.ensure operations are frequent enough, consider storing running size in yet another int array
         var sum = 0
-        for (index in (pointer + head) until tail)
+        for (index in (pointer + head) until tail) {
             sum += limits[index]
+        }
+
         return sum
     }
 

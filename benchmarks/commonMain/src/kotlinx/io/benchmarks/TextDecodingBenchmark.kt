@@ -16,8 +16,8 @@ private val length = expected.length
         0xe5u,0xa5u,0xbdu,0x20u,0x3au,0x20u,0xc3u,0xb1u,0xc3u,0xa7u, 0x2eu)
     // @formatter:on
 
-private val bytes = buildBytes {
-    writeArray(content)
+private val bytes = buildInput {
+    writeByteArray(content)
 }
 
 @State(Scope.Benchmark)

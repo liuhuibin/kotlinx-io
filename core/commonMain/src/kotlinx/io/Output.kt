@@ -74,7 +74,7 @@ abstract class Output(bufferSize: Int = DEFAULT_BUFFER_SIZE) : Closeable {
      *
      * TODO: measure
      */
-    fun writeArray(array: ByteArray) {
+    fun writeByteArray(array: ByteArray) {
         for (byte in array) {
             writeByte(byte)
         }
