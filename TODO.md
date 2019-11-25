@@ -10,8 +10,6 @@
     - Input
     - Output
     - Index preconditions
-    - `bytesInput = buildInput { BytesOutput -> }`
-        - `Bytes.createInput()` copy on consume
     - Introduce `BytesInput` and `BytesOutput` `(Input/Output + size, remaining)`
     - Introduce `readByteArray(), copyTo(output)`
     - Introduce `Input.copyAvailableTo(Output | Buffer)`: consume single buffer(wait if no buffer available)

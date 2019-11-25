@@ -1,10 +1,10 @@
-package kotlinx.io
+package kotlinx.io.bytes
 
 import kotlinx.io.buffer.*
 import kotlin.contracts.*
 
 /**
- * Create [Bytes] with [bufferSize] and fills it from [builder].
+ * Create [BytesInput] with content from [block] using specified [bufferSize].
  */
 fun buildInput(bufferSize: Int = DEFAULT_BUFFER_SIZE, block: BytesOutput.() -> Unit): BytesInput {
     contract {

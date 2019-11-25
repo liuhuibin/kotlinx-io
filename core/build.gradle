@@ -1,13 +1,9 @@
 plugins {
     id "kotlin-multiplatform"
     id "maven-publish"
-    id "kotlinx-atomicfu"
+//    id "kotlinx-atomicfu"
     id "jacoco"
 }
-
-apply plugin: "com.vanniktech.android.junit.jacoco"
-
-apply plugin: "jacoco"
 
 def ideaActive = System.getProperty('idea.active') == 'true'
 
@@ -101,6 +97,12 @@ kotlin {
                 cinterops {
                     testSockets { defFile = file("nativeTest/interop/testSockets.def") }
                 }
+            }
+        }
+
+        if (!ideaActive) {
+            configure([macosX64]) {
+                binaries.getTest("DEBUG").freeCompilerArgs = ["-opt"]
             }
         }
     }

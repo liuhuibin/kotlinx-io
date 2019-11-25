@@ -1,6 +1,7 @@
 package kotlinx.io.tests.text
 
 import kotlinx.io.*
+import kotlinx.io.bytes.*
 import kotlin.test.*
 
 open class OutputStringTest {
@@ -11,12 +12,11 @@ open class OutputStringTest {
         val text = "file."
         val expected = ubyteArrayOf(0x66u, 0x69u, 0x6cu, 0x65u, 0x2eu)
 
-        val bytes = buildBytes(size) {
+        val input = buildInput(size) {
             writeUTF8String(text)
         }
 
-        assertEquals(expected.size, bytes.size(), "Size $size")
-        val input = bytes.input()
+        assertEquals(expected.size, input.remaining, "Size $size")
         val read = UByteArray(expected.size)
         input.readByteArray(read)
         assertTrue(input.eof(), "EOF")
@@ -28,18 +28,16 @@ open class OutputStringTest {
         val text = ".🌀."
         val expected = ubyteArrayOf(0x2eu, 0xf0u, 0x9fu, 0x8cu, 0x80u, 0x2eu)
 
-        val bytes = buildBytes(size) {
+        val input = buildInput(size) {
             writeUTF8String(text)
         }
 
-        assertEquals(expected.size, bytes.size(), "Size $size")
-        val input = bytes.input()
+        assertEquals(expected.size, input.remaining, "Size $size")
         val read = UByteArray(expected.size)
         input.readByteArray(read)
         assertTrue(input.eof(), "EOF")
         assertEquals(expected.contentToString(), read.contentToString())
     }
-
 
     @Test
     fun testWriteUtf8() = bufferSizes.forEach { size ->
@@ -54,13 +52,12 @@ open class OutputStringTest {
             0xe5u,0xa5u,0xbdu,0x20u,0x3au,0x20u,0xc3u,0xb1u,0xc3u,0xa7u,0x2eu)
         // @formatter:on
 
-        val bytes = buildBytes(size) {
+        val input = buildInput(size) {
             writeUTF8String(text)
         }
 
-        assertEquals(expected.size, bytes.size(), "Size $size")
+        assertEquals(expected.size, input.remaining, "Size $size")
 
-        val input = bytes.input()
         val read = UByteArray(expected.size)
         input.readByteArray(read)
         assertTrue(input.eof(), "EOF")
@@ -69,9 +66,9 @@ open class OutputStringTest {
     
     @Test
     fun testWriteMultiByteAtEnd() {
-        val input = buildBytes {
+        val input = buildInput {
             writeUTF8String("ABC\u0422")
-        }.input()
+        }
 
         assertEquals("ABC\u0422", input.readUTF8String(4))
         assertTrue(input.eof(), "EOF")
@@ -79,23 +76,19 @@ open class OutputStringTest {
 
     @Test
     fun testWriteSingleByte() {
-        val input = buildBytes {
+        val input = buildInput {
             writeUTF8String("1")
-        }.input()
-
-        try {
-            assertEquals("1", input.readUTF8String(1))
-            assertTrue(input.eof(), "EOF")
-        } finally {
-            input.close()
         }
+
+        assertEquals("1", input.readUTF8String(1))
+        assertTrue(input.eof(), "EOF")
     }
 
     @Test
     fun testReadUntilDelimiter() {
-        val input = buildBytes {
+        val input = buildInput {
             writeUTF8String("1,23|,4.")
-        }.input()
+        }
 
         val sb = StringBuilder()
         val counts = mutableListOf<Int>()
@@ -111,9 +104,9 @@ open class OutputStringTest {
     
     @Test
     fun testReadUntilDelimiterMulti() {
-        val input = buildBytes {
+        val input = buildInput {
             writeUTF8String("\u0422,\u0423|\u0424.")
-        }.input()
+        }
 
         val sb = StringBuilder()
         val counts = mutableListOf<Int>()
@@ -128,9 +121,9 @@ open class OutputStringTest {
 
     @Test
     fun testReadLineSingleBuffer() = bufferSizes.forEach { size ->
-        val input = buildBytes(size) {
+        val input = buildInput(size) {
             writeUTF8String("1\r\n22\n333\n4444\n") // TODO: replace one LF with CR when we can read it 
-        }.input()
+        }
 
         assertEquals("1", input.readUTF8Line())
         assertEquals("22", input.readUTF8Line())

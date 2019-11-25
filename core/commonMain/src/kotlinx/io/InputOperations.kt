@@ -7,7 +7,7 @@ import kotlinx.io.buffer.*
  *
  * @throws EOFException if not enough bytes available.
  */
-fun Input.readByteArray(array: ByteArray, startIndex: Int = 0, length: Int = array.size - startIndex) {
+public fun Input.readByteArray(array: ByteArray, startIndex: Int = 0, length: Int = array.size - startIndex) {
     var remaining = length
     var consumed = 0
     while (remaining > 0) {
@@ -27,7 +27,7 @@ fun Input.readByteArray(array: ByteArray, startIndex: Int = 0, length: Int = arr
  * @throws EOFException if not enough bytes available.
  */
 @ExperimentalUnsignedTypes
-fun Input.readByteArray(array: UByteArray, startIndex: Int = 0, length: Int = array.size - startIndex) {
+public fun Input.readByteArray(array: UByteArray, startIndex: Int = 0, length: Int = array.size - startIndex) {
     readByteArray(array.asByteArray(), startIndex, length)
 }
 

@@ -27,17 +27,5 @@ internal class DefaultBufferPool(
     companion object {
         @ThreadLocal
         val Instance = DefaultBufferPool()
-
-        val Unmanaged = DefaultBufferPool(source = UnmanagedBufferAllocator)
-    }
-}
-
-internal class DirectAllocationBufferPool(
-    private val bufferSize: Int = DEFAULT_BUFFER_SIZE,
-    private val source: BufferAllocator = PlatformBufferAllocator
-) : DirectAllocationPool<Buffer>() {
-
-    override fun borrow(): Buffer {
-        return source.allocate(bufferSize)
     }
 }

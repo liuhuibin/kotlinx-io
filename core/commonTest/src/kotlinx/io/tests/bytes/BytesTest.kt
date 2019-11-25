@@ -1,10 +1,22 @@
-package kotlinx.io.tests
+package kotlinx.io.tests.bytes
 
 import kotlinx.io.*
+import kotlinx.io.bytes.*
 import kotlin.test.*
 
 class BytesTest {
     private val bufferSizes = (1..64)
+
+    @Test
+    fun testEmptyBuildInput() {
+        buildInput {
+        }
+    }
+
+    @Test
+    fun testEmptyCreateInput() {
+        BytesOutput().createInput()
+    }
 
     @Test
     fun testSmokeSingleBuffer() = bufferSizes.forEach { size ->
@@ -114,7 +126,7 @@ class BytesTest {
     fun testSingleBufferSkipExactTooMuch() {
         buildInput {
             writeByteArray("ABC123".toByteArray0())
-        }.useInput {
+        }.apply {
             assertFailsWith<EOFException> {
                 readByteArray(ByteArray(1000))
             }
@@ -127,9 +139,9 @@ class BytesTest {
     @Test
     @Ignore
     fun testMultiBufferSkipTooMuch() {
-        buildBytes {
+        buildInput {
             writeByteArray(ByteArray(99999))
-        }.useInput {
+        }.apply {
             assertTrue { eof() }
         }
 
@@ -137,10 +149,10 @@ class BytesTest {
 
     @Test
     fun testMultiBufferSkip() {
-        buildBytes {
+        buildInput {
             writeByteArray(ByteArray(99999))
             writeByteArray("ABC123\n".toByteArray0())
-        }.useInput {
+        }.apply {
             readByteArray(ByteArray(99999 + 3))
             assertEquals("123", readUTF8Line())
             assertTrue { eof() }
@@ -149,11 +161,11 @@ class BytesTest {
 
     @Test
     fun testNextBufferBytesStealing() {
-        buildBytes {
+        buildInput {
             repeat(PACKET_BUFFER_SIZE + 3) {
                 writeByte(1)
             }
-        }.useInput {
+        }.apply {
             readByteArray(ByteArray(PACKET_BUFFER_SIZE - 1))
             assertEquals(0x01010101, readInt())
             assertTrue { eof() }
@@ -162,11 +174,11 @@ class BytesTest {
 
     @Test
     fun testNextBufferBytesStealingFailed() {
-        buildBytes {
+        buildInput {
             repeat(PACKET_BUFFER_SIZE + 1) {
                 writeByte(1)
             }
-        }.useInput {
+        }.apply {
             readByteArray(ByteArray(PACKET_BUFFER_SIZE - 1))
 
             try {
@@ -180,15 +192,15 @@ class BytesTest {
     @Test
     fun testReadByteEmptyPacket() {
         assertFailsWith<EOFException> {
-            buildBytes { }.useInput {
+            buildInput { }.apply {
                 readInt()
             }
         }
 
         assertFailsWith<EOFException> {
-            buildBytes {
+            buildInput {
                 writeInt(1)
-            }.useInput {
+            }.apply {
                 readInt()
                 readByte()
             }
